@@ -6,6 +6,8 @@
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_RPM/AP_RPM.h>
 #include <AP_RCTelemetry/AP_RCTelemetry.h>
+#include <AP_GPS/AP_GPS.h>
+#include <AP_RTC/AP_RTC.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -132,6 +134,35 @@ bool AP_Frsky_Backend::calc_rpm(const uint8_t instance, int32_t &value) const
 #else
     return false;
 #endif
+}
+
+/*
+ * pack UTC date and time into a single 32-bit word.
+ * layout (MSB first): year-2000 (6b) | month (4b) | day (5b) | hour (5b) | minute (6b) | second (6b)
+ * sending is gated by: 3D fix present AND vehicle disarmed AND RTC has valid time.
+ */
+bool AP_Frsky_Backend::calc_gps_time_date(uint32_t &out)
+{
+    if ((uint8_t)AP::gps().status() < AP_GPS::GPS_OK_FIX_3D) {
+        return false;
+    }
+    if (hal.util->get_soft_armed()) {
+        return false;
+    }
+    uint16_t year;
+    uint8_t month, day, hour, minute, second;
+    uint16_t ms;
+    if (!AP::rtc().get_date_and_time_utc(year, month, day, hour, minute, second, ms)) {
+        return false;
+    }
+    const uint32_t yr = (year >= 2000) ? (uint32_t)(year - 2000) : 0;
+    out  = (yr     & 0x3F) << 26;
+    out |= (uint32_t)(month  & 0x0F) << 22;
+    out |= (uint32_t)(day    & 0x1F) << 17;
+    out |= (uint32_t)(hour   & 0x1F) << 12;
+    out |= (uint32_t)(minute & 0x3F) << 6;
+    out |= (uint32_t)(second & 0x3F);
+    return true;
 }
 
 #endif  // AP_FRSKY_TELEM_ENABLED

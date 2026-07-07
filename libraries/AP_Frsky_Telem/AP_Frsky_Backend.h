@@ -59,6 +59,10 @@ protected:
     void calc_gps_position(void);
     bool calc_rpm(const uint8_t instance, int32_t &value) const;
 
+    // pack UTC year/month/day/hour/min/sec into a single 32-bit word.
+    // returns false if RTC has no valid time yet or vehicle is armed / no 3D fix
+    static bool calc_gps_time_date(uint32_t &out);
+
     float get_vspeed_ms(void);
 
     // methods to convert flight controller data to FrSky D or SPort format
@@ -123,6 +127,9 @@ protected:
     static const uint16_t GPS_ALT_ID                = 0x082F;
     static const uint16_t GPS_SPEED_ID              = 0x083F;
     static const uint16_t GPS_COURS_ID              = 0x084F;
+    // custom AppID carrying combined UTC date+time in a single 32-bit word
+    // (layout defined in calc_gps_time_date)
+    static const uint16_t GPS_TIME_DATE_ID          = 0x0870;
     static const uint16_t DIY_FIRST_ID              = 0x5000;
 
     static const uint8_t FRAME_HEAD                = 0x7E;

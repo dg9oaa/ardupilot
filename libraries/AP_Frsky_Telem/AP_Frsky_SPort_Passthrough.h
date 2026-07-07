@@ -78,6 +78,7 @@ public:
         TERRAIN =       14, // 0x500B terrain data
         WIND =          15, // 0x500C wind data
         WAYPOINT =      16, // 0x500D waypoint data
+        GPS_TIME =      17, // 0x500E UTC date+time (gated: 3D fix and disarmed)
         WFQ_LAST_ITEM       // must be last
     };
 

@@ -140,6 +140,7 @@ void AP_Frsky_SPort_Passthrough::setup_wfq_scheduler(void)
     set_scheduler_entry(TERRAIN, 700, 500);     // 0x500B terrain data
     set_scheduler_entry(WIND, 700, 500);        // 0x500C wind data
     set_scheduler_entry(WAYPOINT, 750, 500);    // 0x500D waypoint data
+    set_scheduler_entry(GPS_TIME, 1000, 500);   // 0x500E UTC date+time (only before arm)
     set_scheduler_entry(UDATA, 5000, 200);      // user data
 
     // initialize default sport sensor ID
@@ -264,6 +265,12 @@ bool AP_Frsky_SPort_Passthrough::is_packet_ready(uint8_t idx, bool queue_empty)
             packet_ready = mission != nullptr && mission->get_current_nav_index() > 0;
         }
         break;
+    case GPS_TIME:
+        // only stream date+time between 3D fix and arm; calc_gps_time_date()
+        // re-checks the same gate before packing, so this is only a fast filter
+        packet_ready = ((uint8_t)AP::gps().status() >= AP_GPS::GPS_OK_FIX_3D)
+                        && !hal.util->get_soft_armed();
+        break;
     case UDATA:
         // when using fport user data is sent by scheduler
         // when using sport user data is sent responding to custom polling
@@ -341,6 +348,31 @@ void AP_Frsky_SPort_Passthrough::process_packet(uint8_t idx)
         break;
     case WAYPOINT: // 0x500D waypoint data
         send_sport_frame(SPORT_DATA_FRAME, DIY_FIRST_ID+0x0D, calc_waypoint());
+        break;
+    case GPS_TIME: // 0x500E UTC date+time
+        {
+            uint32_t datetime;
+            static uint32_t last_dbg_ms;
+            const uint32_t now_ms = AP_HAL::millis();
+            if (calc_gps_time_date(datetime)) {
+                send_sport_frame(SPORT_DATA_FRAME, DIY_FIRST_ID+0x0E, datetime);
+                if (now_ms - last_dbg_ms > 5000) {
+                    last_dbg_ms = now_ms;
+                    const uint16_t y  = 2000 + ((datetime >> 26) & 0x3F);
+                    const uint8_t  mo = (datetime >> 22) & 0x0F;
+                    const uint8_t  d  = (datetime >> 17) & 0x1F;
+                    const uint8_t  h  = (datetime >> 12) & 0x1F;
+                    const uint8_t  mi = (datetime >>  6) & 0x3F;
+                    const uint8_t  s  =  datetime        & 0x3F;
+                    GCS_SEND_TEXT(MAV_SEVERITY_INFO,
+                                  "FrSky PT 0x500E: %04u-%02u-%02u %02u:%02u:%02uZ (raw 0x%08lx)",
+                                  y, mo, d, h, mi, s, (unsigned long)datetime);
+                }
+            } else if (now_ms - last_dbg_ms > 5000) {
+                last_dbg_ms = now_ms;
+                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "FrSky PT 0x500E: gate blocked");
+            }
+        }
         break;
     case UDATA: // user data
         {
