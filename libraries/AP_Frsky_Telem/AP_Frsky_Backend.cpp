@@ -138,7 +138,9 @@ bool AP_Frsky_Backend::calc_rpm(const uint8_t instance, int32_t &value) const
 
 /*
  * pack UTC date and time into a single 32-bit word.
- * layout (MSB first): year-2000 (6b) | month (4b) | day (5b) | hour (5b) | minute (6b) | second (6b)
+ * layout (MSB first): year-2000 (6b) | month (4b, 1..12) | day (5b) | hour (5b) | minute (6b) | second (6b)
+ * month is normalised to the human calendar convention 1..12 (get_date_and_time_utc
+ * itself returns 0..11 like C tm_mon).
  * sending is gated by: 3D fix present AND vehicle disarmed AND RTC has valid time.
  */
 bool AP_Frsky_Backend::calc_gps_time_date(uint32_t &out)
@@ -157,7 +159,7 @@ bool AP_Frsky_Backend::calc_gps_time_date(uint32_t &out)
     }
     const uint32_t yr = (year >= 2000) ? (uint32_t)(year - 2000) : 0;
     out  = (yr     & 0x3F) << 26;
-    out |= (uint32_t)(month  & 0x0F) << 22;
+    out |= (uint32_t)((month + 1) & 0x0F) << 22;
     out |= (uint32_t)(day    & 0x1F) << 17;
     out |= (uint32_t)(hour   & 0x1F) << 12;
     out |= (uint32_t)(minute & 0x3F) << 6;
