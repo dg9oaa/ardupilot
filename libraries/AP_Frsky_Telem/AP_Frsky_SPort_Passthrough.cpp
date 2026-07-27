@@ -352,12 +352,11 @@ void AP_Frsky_SPort_Passthrough::process_packet(uint8_t idx)
     case GPS_TIME: // 0x500E UTC date+time
         {
             uint32_t datetime;
-            static uint32_t last_dbg_ms;
-            const uint32_t now_ms = AP_HAL::millis();
+            static bool dbg_sent = false;
             if (calc_gps_time_date(datetime)) {
                 send_sport_frame(SPORT_DATA_FRAME, DIY_FIRST_ID+0x0E, datetime);
-                if (now_ms - last_dbg_ms > 5000) {
-                    last_dbg_ms = now_ms;
+                if (!dbg_sent) {
+                    dbg_sent = true;
                     const uint16_t y  = 2000 + ((datetime >> 26) & 0x3F);
                     const uint8_t  mo = (datetime >> 22) & 0x0F;
                     const uint8_t  d  = (datetime >> 17) & 0x1F;
@@ -365,12 +364,8 @@ void AP_Frsky_SPort_Passthrough::process_packet(uint8_t idx)
                     const uint8_t  mi = (datetime >>  6) & 0x3F;
                     const uint8_t  s  =  datetime        & 0x3F;
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO,
-                                  "FrSky PT 0x500E: %04u-%02u-%02u %02u:%02u:%02uZ (raw 0x%08lx)",
-                                  y, mo, d, h, mi, s, (unsigned long)datetime);
+                                  "FrSky GPS Time: %04u-%02u-%02u %02u:%02u:%02uZ", y, mo, d, h, mi, s);
                 }
-            } else if (now_ms - last_dbg_ms > 5000) {
-                last_dbg_ms = now_ms;
-                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "FrSky PT 0x500E: gate blocked");
             }
         }
         break;

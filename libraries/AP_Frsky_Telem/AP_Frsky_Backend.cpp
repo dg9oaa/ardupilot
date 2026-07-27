@@ -145,6 +145,14 @@ bool AP_Frsky_Backend::calc_rpm(const uint8_t instance, int32_t &value) const
  */
 bool AP_Frsky_Backend::calc_gps_time_date(uint32_t &out)
 {
+    // per-boot burst: emit the time exactly BURST_LIMIT times, then stay silent.
+    // The static counter resets on FC reboot only — not on fix loss and not on
+    // arm/disarm — matching the design of "sync the RC clock once at power-up".
+    static constexpr uint8_t BURST_LIMIT = 3;
+    static uint8_t sent_count = 0;
+    if (sent_count >= BURST_LIMIT) {
+        return false;
+    }
     if ((uint8_t)AP::gps().status() < AP_GPS::GPS_OK_FIX_3D) {
         return false;
     }
@@ -164,6 +172,7 @@ bool AP_Frsky_Backend::calc_gps_time_date(uint32_t &out)
     out |= (uint32_t)(hour   & 0x1F) << 12;
     out |= (uint32_t)(minute & 0x3F) << 6;
     out |= (uint32_t)(second & 0x3F);
+    sent_count++;
     return true;
 }
 

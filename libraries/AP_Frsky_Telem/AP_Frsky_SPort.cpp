@@ -113,21 +113,16 @@ void AP_Frsky_SPort::send(void)
                     _SPort.gps_refresh = true;
                     break;
                 case 5: {
-                    // send GPS-derived UTC date+time, gated to the window
-                    // between 3D fix and arm so the RC never gets stale time
-                    // once the vehicle is flying
+                    // send GPS-derived UTC date+time exactly BURST_LIMIT times
+                    // per boot (gating done inside calc_gps_time_date)
                     uint32_t datetime;
-                    static uint32_t last_dbg_ms;
-                    const uint32_t now_ms = AP_HAL::millis();
+                    static bool dbg_sent = false;
                     if (calc_gps_time_date(datetime)) {
                         send_sport_frame(SPORT_DATA_FRAME, GPS_TIME_DATE_ID, datetime);
-                        if (now_ms - last_dbg_ms > 5000) {
-                            last_dbg_ms = now_ms;
+                        if (!dbg_sent) {
+                            dbg_sent = true;
                             GCS_SEND_TEXT(MAV_SEVERITY_INFO, "FrSky SPort: sent 0x0870=0x%08lx", (unsigned long)datetime);
                         }
-                    } else if (now_ms - last_dbg_ms > 5000) {
-                        last_dbg_ms = now_ms;
-                        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "FrSky SPort: 0x0870 gate blocked");
                     }
                     break;
                 }
