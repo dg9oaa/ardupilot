@@ -121,7 +121,7 @@ void AP_Frsky_SPort::send(void)
                         send_sport_frame(SPORT_DATA_FRAME, GPS_TIME_DATE_ID, datetime);
                         if (!dbg_sent) {
                             dbg_sent = true;
-                            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "FrSky SPort: sent 0x0870=0x%08lx", (unsigned long)datetime);
+                            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "FrSky send time");
                         }
                     }
                     break;
